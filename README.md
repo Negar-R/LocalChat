@@ -1,4 +1,4 @@
-# Local_Chat
+# LocalChat
 
 > Having an active connection opened between the client and the server so client can send and receive data. This allows real-time communication using TCP sockets. This is made possible by java.net.ServerSocket.
 After running the Main.java you should specify that you are connecting as a client or a server. 
@@ -8,8 +8,8 @@ Notice: The server should be upped first.
 
 First, clone the repository to your local machine:
 ```
-git clone https://github.com/Negar-R/Local_Chat.git
-cd Local_Chat
+git clone https://github.com/Negar-R/LocalChat.git
+cd LocalChat
 ```
 
 as `Maven` is not used to build dependency tree for project, files should be compiled in the below order:
