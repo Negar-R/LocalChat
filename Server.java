@@ -2,6 +2,7 @@ package localchat;
 
 import java.net.*;
 import java.io.*;
+import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
 public class Server {  
@@ -9,20 +10,22 @@ public class Server {
     private DataInputStream console = null;
     private ServerSocket server = null;
     private DataInputStream inputStream = null;
-    private DataOutputStream outputStream = null;
+    private ArrayList<DataOutputStream> outputStreams = null;
+    private int clientCount = 0;
 
     private class Writer implements Runnable {
         private Thread t;
         private String threadName;
-        private DataInputStream console;
-        private DataOutputStream outputStream;
+        private DataInputStream inputStream;
+        private ArrayList<DataOutputStream> outputStreams;
         
-        public Writer(String name, DataOutputStream outputStream, DataInputStream console) {
+        public Writer(String name, ArrayList<DataOutputStream> outputStreams,
+                      DataInputStream inputStream) {
             this.threadName = name;
-            this.outputStream = outputStream;
-            this.console = console;
+            this.outputStreams = outputStreams;
+            this.inputStream = inputStream;
         }
-        @Override
+        
         public void run() {
             String line = "";
 
@@ -30,9 +33,11 @@ public class Server {
 
             while (!line.equals("end")) { 
                 try {
-                    line = this.console.readLine();
-                    this.outputStream.writeUTF(line);
-                    this.outputStream.flush();
+                    line = inputStream.readUTF();
+                    for (DataOutputStream outputStream : this.outputStreams) {
+                        outputStream.writeUTF(line);
+                        outputStream.flush();
+                    }
                 } catch(IOException ioe) {
                     ioe.printStackTrace();
                 }
@@ -42,63 +47,42 @@ public class Server {
         public void start () {
             if (this.t == null) {
                 this.t = new Thread(this, threadName);
-                this.t.start ();
+                this.t.start();
             }
         }
     }
 
     public Server(int port, MessageSubject messageSubject) { 
         try {
-            server = new ServerSocket(port);  
+            this.outputStreams = new ArrayList<>();
+            server = new ServerSocket(port);
             System.out.println("Server started: " + server);
-            System.out.println("Waiting for a client ..."); 
-            socket = server.accept();
-            System.out.println("Client accepted: " + socket);
 
-            start(socket);
+            while (true){
+                System.out.println("Waiting for a client ..."); 
+                socket = server.accept();
+                System.out.println("Client accepted: " + socket);
 
-            open(); // !
-            boolean done = false;
-            while (!done) { 
                 try {
-                    String line = inputStream.readUTF(); // input stream
-                    if (line.equals("beep")) {
-                        messageSubject.notifyAllObservers(new BeepMessage());
-                    } else {
-                        messageSubject.notifyAllObservers(new TextMessage(line));
-                    }
-                    done = line.equals("end");
+                    TimeUnit.SECONDS.sleep(1);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
-                catch(IOException ioe) {
-                    done = true;
-                }
+
+                start(socket);
             }
-            close();
         }
         catch(IOException ioe) {
             System.out.println(ioe); 
         }
     }
-    
-    public void open() throws IOException {
-        this.inputStream = new DataInputStream(
-            new BufferedInputStream(socket.getInputStream())
-        );
-    }
-    
-    public void close() throws IOException {
-        if (socket != null) {
-            socket.close();
-        }
-        if (inputStream != null) {
-            inputStream.close();
-        }
-    }
 
     public void start(Socket socket) throws IOException {
-        this.console = new DataInputStream(System.in);
-        this.outputStream = new DataOutputStream(socket.getOutputStream());
-        Writer writer = new Writer("WriterThread-1", this.outputStream, this.console);
+        inputStream = new DataInputStream(
+            new BufferedInputStream(socket.getInputStream())
+        );
+        this.outputStreams.add(new DataOutputStream(socket.getOutputStream()));
+        Writer writer = new Writer("WriterThread:" + this.clientCount++, this.outputStreams, inputStream);
         writer.start();
     }
 }
